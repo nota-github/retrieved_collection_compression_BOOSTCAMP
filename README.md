@@ -38,3 +38,4 @@ python eval.py
 
 #### step 6. Fine-tuning query encoder (query-sided fine-tuning)
 * assignment: adapt Densephrases to larger retrieval unit
+  * modifyable parts: Densephrases/densephrases/train_query.py
