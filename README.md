@@ -1,6 +1,6 @@
-# retrieved_collection_compression_densephrase
+## Compress retrieved collection with DensePhrase
 
-## Procedure
+### Procedure
 step 1. Setup docker environment
 
 ```bash
@@ -22,7 +22,7 @@ step 4. Retrieve relevant with varying #retrieve
 * #retrieve: 1-500
 * fixed retrieval unit: sentence
   * availble retrieval granularity: documents, paragraph, sentence, phrase
-* ```bash
+```bash
 python retrieve.py
 ```
 * output: runfile
@@ -31,7 +31,7 @@ python retrieve.py
   * prefer short sentences with minimal redundancy
 
 step 5. Calculate mean average recall (mAR)
-* ```bash
+```bash
 python eval.py
 ```
 * output: mAR
