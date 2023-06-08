@@ -5,18 +5,24 @@ This repository is used for compressing retrieved collection which further is us
 #### step 1. Clone repository and update submodules
 ```bash
 git clone https://github.com/nota-github/retrieved_collection_compression_densephrase
+cd retrieved_collection_compression_densephrase
 git submodule update --recursive --remote
 ```
 
 #### step 2. Setup docker environment
 ```bash
+# in host
 docker pull notadockerhub/collection_compression_densephrase:latest
 docker run -v /path/to/parent_of_repository:/root --workdir /root --name {container_name} --shm-size=2gb -it --gpus GPU_INDICES -t notadockerhub/collection_compression_densephrase
+
+# in container
+cd retrieved_collection_compression_densephrase/DensePhrases
+pip install -e . # editable mode install
 ```
 
 #### step 3. Setup path & variable
 ```bash
-cd retrieved_collection_compression_densephrase
+cd /root/retrieved_collection_compression_densephrase
 ./config.sh
 source ~/.bashrc
 ```

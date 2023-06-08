@@ -34,7 +34,7 @@ def retrieve(args):
 
     with open(runfile_path, "w") as fw:
         # iterate through query
-        for sample in qa_data:
+        for sample in tqdm(qa_data['data']):
             # parsing query info
             qid, query = sample['id'], sample['question']
 
