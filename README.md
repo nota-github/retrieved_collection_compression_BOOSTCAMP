@@ -51,12 +51,10 @@ python retrieve.py --query_encoder_name_or_dir princeton-nlp/densephrases-multi-
   * prefer short sentences with minimal redundancy
 <details>
   <summary>retrieved sentences example</summary>
-  - Query: Where are mucosal associated lymphoid tissues present in the human body and why?
-	(인체에서 점막 관련 림프 조직은 어디에 존재하며 그 이유는 무엇입니까?)
-
-  - Answers: [oral passage, salivary glands, gastrointestinal tract, breast, skin, thyroid, lung, nasopharyngeal tract, eye]
-
-  - Retrieved "sentences" by DensePhrase: ['In the gastrointestinal tract, the term "mucosa" or "mucous membrane" refers to the combination of epithelium, lamina propria, and (where it occurs) muscularis mucosae.', 'Another type of relatively undifferentiated connective tissue is mucous connective tissue, found inside the umbilical cord.', 'Lymph nodes or "glands" or "nodes" or "lymphoid tissue" are nodular bodies located throughout the body but clustering in certain areas such as the armpit, back of the neck and the groin.', 'The mucosa-associated lymphoid tissue (MALT), also called mucosa-associated lymphatic tissue, is a diffuse system of small concentrations of lymphoid tissue found in various submucosal membrane sites of the body, such as the gastrointestinal tract, oral passage, nasopharyngeal tract, thyroid, breast, lung, salivary glands, eye, and skin.' ...]
+Query: Where are mucosal associated lymphoid tissues present in the human body and why?
+(인체에서 점막 관련 림프 조직은 어디에 존재하며 그 이유는 무엇입니까?)
+Answers: [oral passage, salivary glands, gastrointestinal tract, breast, skin, thyroid, lung, nasopharyngeal tract, eye]
+Retrieved "sentences" by DensePhrase: ['In the gastrointestinal tract, the term "mucosa" or "mucous membrane" refers to the combination of epithelium, lamina propria, and (where it occurs) muscularis mucosae.', 'Another type of relatively undifferentiated connective tissue is mucous connective tissue, found inside the umbilical cord.', 'Lymph nodes or "glands" or "nodes" or "lymphoid tissue" are nodular bodies located throughout the body but clustering in certain areas such as the armpit, back of the neck and the groin.', 'The mucosa-associated lymphoid tissue (MALT), also called mucosa-associated lymphatic tissue, is a diffuse system of small concentrations of lymphoid tissue found in various submucosal membrane sites of the body, such as the gastrointestinal tract, oral passage, nasopharyngeal tract, thyroid, breast, lung, salivary glands, eye, and skin.' ...]
 </details>
 
 #### step 6. Calculate mean average recall (mAR)
@@ -79,4 +77,4 @@ make train-query MODEL_NAME=NEW_MODEL_SAVE_DIR DUMP_DIR=$SAVE_DIR/densephrases-m
     * Densephrases/densephrases/encoder.py > train_query()
 
 ### Acknowledgement
-* Majority of code comes from [princeton-nlp/Densephrases:v1.1.0](https://github.com/princeton-nlp/DensePhrases/tree/v1.1.0) and included as [sub-directory](Densephrases) of this repository.
+* Majority of code comes from [princeton-nlp/Densephrases](https://github.com/princeton-nlp/DensePhrases) and included as [submodule](Densephrases) of this repository.
