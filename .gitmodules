@@ -1,0 +1,3 @@
+[submodule "DensePhrases2"]
+	path = DensePhrases2
+	url = https://github.com/princeton-nlp/DensePhrases.git
