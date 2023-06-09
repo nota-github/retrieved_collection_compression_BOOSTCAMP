@@ -46,7 +46,10 @@ cd ../
   * topK = 200
   * test query, collection
 ```bash
-python retrieve.py --batch_size BATCH_SIZE --query_encoder_name_or_dir princeton-nlp/densephrases-multi-query-multi --runfile_name run.tsv
+python retrieve.py \
+  --batch_size BATCH_SIZE \
+  --query_encoder_name_or_dir princeton-nlp/densephrases-multi-query-multi \
+  --runfile_name run.tsv
 ```
 * batch_size=128 works for GPU with VRAM=24GB
 * output: runfile
