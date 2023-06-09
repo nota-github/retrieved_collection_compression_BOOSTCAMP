@@ -37,7 +37,7 @@ cd ../
 * index: pre-built index of wikipedia
   * we will not re-train passage encoder
 * wiki: pre-processed raw data for making index
-* pre-trained `query encoder` will be downloaded from [huggingface modelhub](https://huggingface.co/princeton-nlp/densephrases-multi-query-nq)
+* pre-trained `query encoder` will be downloaded from [huggingface modelhub](https://huggingface.co/princeton-nlp/densephrases-multi-query-multi)
 
 #### step 5. Retrieve relevant sentences with varying #retrieve 
 * fixed setting

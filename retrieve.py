@@ -11,7 +11,7 @@ from densephrases import DensePhrases # note that DensePhrases is installed with
 R_UNIT='sentence'
 TOP_K=200
 DUMP_DIR='DensePhrases/outputs/densephrases-multi_wiki-20181220/dump'
-INDEX_NAME='start/1048576_flat_OPQ96_small'
+INDEX_NAME='start/1048576_flat_OPQ96'
 QA_PATH="DensePhrases/densephrases-data/open-qa/nq-open/test_preprocessed.json"
 RUNFILE_DIR="runs"
 os.makedirs(RUNFILE_DIR, exist_ok=True)
