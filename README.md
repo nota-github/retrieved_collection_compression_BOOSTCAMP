@@ -28,7 +28,6 @@ source ~/.bashrc
 
 #### step 4. Download prepared resources: data
 ```bash
-cd Densephrases
 ./download.sh 
 # download `data`, `index`, `wiki` with this script
 cd ../
