@@ -4,9 +4,8 @@ This repository is used for compressing retrieved collection which further is us
 ### Procedure
 #### step 1. Clone repository and update submodules
 ```bash
-git clone https://github.com/nota-github/retrieved_collection_compression_BOOSTCAMP.git
+git clone --recurse-submodules https://github.com/nota-github/retrieved_collection_compression_BOOSTCAMP.git
 cd retrieved_collection_compression_densephrase
-git submodule update --recursive --remote
 ```
 
 #### step 2. Setup docker environment
