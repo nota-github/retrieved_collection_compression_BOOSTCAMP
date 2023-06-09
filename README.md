@@ -4,9 +4,8 @@ This repository is used for compressing retrieved collection which further is us
 ### Procedure
 #### step 1. Clone repository and update submodules
 ```bash
-git clone https://github.com/nota-github/retrieved_collection_compression_densephrase
+git clone --recurse-submodules https://github.com/nota-github/retrieved_collection_compression_BOOSTCAMP.git
 cd retrieved_collection_compression_densephrase
-git submodule update --recursive --remote
 ```
 
 #### step 2. Setup docker environment
@@ -59,7 +58,9 @@ python retrieve.py --query_encoder_name_or_dir princeton-nlp/densephrases-multi-
   <summary>retrieved sentences example</summary>
 Query: Where are mucosal associated lymphoid tissues present in the human body and why?
 (인체에서 점막 관련 림프 조직은 어디에 존재하며 그 이유는 무엇입니까?)
+</br>
 Answers: [oral passage, salivary glands, gastrointestinal tract, breast, skin, thyroid, lung, nasopharyngeal tract, eye]
+ 
 Retrieved "sentences" by DensePhrase: ['In the gastrointestinal tract, the term "mucosa" or "mucous membrane" refers to the combination of epithelium, lamina propria, and (where it occurs) muscularis mucosae.', 'Another type of relatively undifferentiated connective tissue is mucous connective tissue, found inside the umbilical cord.', 'Lymph nodes or "glands" or "nodes" or "lymphoid tissue" are nodular bodies located throughout the body but clustering in certain areas such as the armpit, back of the neck and the groin.', 'The mucosa-associated lymphoid tissue (MALT), also called mucosa-associated lymphatic tissue, is a diffuse system of small concentrations of lymphoid tissue found in various submucosal membrane sites of the body, such as the gastrointestinal tract, oral passage, nasopharyngeal tract, thyroid, breast, lung, salivary glands, eye, and skin.' ...]
 </details>
 
