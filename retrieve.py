@@ -27,22 +27,35 @@ def retrieve(args):
     # load QA list
     with open(QA_PATH, 'r') as fr:
         qa_data = json.load(fr)
+    
+    # get all query list
+    queries, qids = [], []
+    for sample in qa_data['data']:
+        queries.append(sample['question'])
+        qids.append(sample['id'])
+
+    # batchify
+    queries_batch = []
+    N = args.batch_size
+    for i in range(0, len(queries), N):
+        batch = queries[i:i+N]
+        queries_batch.append(batch)
 
     # generate runfile
     runfile_path=f"{RUNFILE_DIR}/{args.runfile_name}"
     print(f"generating runfile: {runfile_path}")
 
     with open(runfile_path, "w") as fw:
-        # iterate through query
-        for sample in tqdm(qa_data['data']):
-            # parsing query info
-            qid, query = sample['id'], sample['question']
-
+        # iterate through batch
+        idx = 0
+        for batch_query in tqdm(queries_batch):
             # retrieve
-            result = model.search(query, retrieval_unit=R_UNIT, top_k=TOP_K) # TODO. do batch search
+            result = model.search(batch_query, retrieval_unit=R_UNIT, top_k=TOP_K)
 
             # write to runfile
-            fw.write(f"{qid}\t{result}\n")
+            for i in range(len(result)):
+                fw.write(f"{qids[idx]}\t{result[i]}\n")
+                idx += 1
 
 if __name__ == "__main__":
     # parse arguments
@@ -51,6 +64,9 @@ if __name__ == "__main__":
                         help="query encoder name registered in huggingface model hub OR custom query encoder checkpoint directory")
     parser.add_argument('--runfile_name', type=str, default="run.tsv",
                         help="output runfile name which indluces query id and retrieved collection")
+    parser.add_argument('--batch_size', type=int, default=1,
+                        help="#query to process with parallel processing")
+
 
     args = parser.parse_args()
     
