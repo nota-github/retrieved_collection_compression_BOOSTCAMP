@@ -1,5 +1,6 @@
 #!/bin/bash
 
+
 while read -p "Choose a resource to download [data/wiki/models/index]: " choice; do
     case "$choice" in
         data )

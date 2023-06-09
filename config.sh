@@ -44,7 +44,7 @@ echo "CACHE_DIR=$CACHE_DIR"
 while read -p "Add to ~/.bashrc (recommended)? [yes/no]: " choice; do
     case "$choice" in
         yes )
-            echo "# DensePhrases setup" >> ~/.bashrc;
+            echo "#DensePhrases setup" >> ~/.bashrc;
             echo "export BASE_DIR=$BASE_DIR" >> ~/.bashrc;
             echo "export DATA_DIR=$DATA_DIR" >> ~/.bashrc;
             echo "export SAVE_DIR=$SAVE_DIR" >> ~/.bashrc;
