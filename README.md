@@ -105,11 +105,15 @@ export OPENAI_API_KEY=YOUR_API_KEY; python run_ralm.py --index_name INDEX_NAME -
 Query: Where are mucosal associated lymphoid tissues present in the human body and why?
 (인체에서 점막 관련 림프 조직은 어디에 존재하며 그 이유는 무엇입니까?)
 </br>
-Generated: Mucosal-associated lymphoid tissues (MALT) are found in various submucosal membrane sites of the body, including the gastrointestinal tract, oral passage, nasopharyngeal tract, thyroid, breast, lung, salivary glands, eye, and skin. They are present in these locations because they play a crucial role in the immune system's defense against pathogens that may enter the body through these mucosal surfaces. MALT acts as a barrier and initiates immune responses to protect against infections in these areas. Additionally, the presence of MALT in the gut is particularly important due to the large mass of lymphoid tissue in the intestine, which helps in the absorption of nutrients and provides immune protection against ingested pathogens.
+</br>
+Generated answer: Mucosal-associated lymphoid tissues (MALT) are found in various submucosal membrane sites of the body, including the gastrointestinal tract, oral passage, nasopharyngeal tract, thyroid, breast, lung, salivary glands, eye, and skin. They are present in these locations because they play a crucial role in the immune system's defense against pathogens that may enter the body through these mucosal surfaces. MALT acts as a barrier and initiates immune responses to protect against infections in these areas. Additionally, the presence of MALT in the gut is particularly important due to the large mass of lymphoid tissue in the intestine, which helps in the absorption of nutrients and provides immune protection against ingested pathogens.
+</br>
 </br>
 Appended context with 88 sentences: [Document(page_content='In the gastrointestinal tract, the term "mucosa" or "mucous membrane" refers to the combination of epithelium, lamina propria, and (where it occurs) muscularis mucosae.', metadata={'source': 'source_0'}), Document(page_content='Lymph nodes or \'glands\' or "nodes" or "lymphoid tissue" are nodular bodies located throughout the body but clustering in certain areas such as the armpit, back of the neck and the groin.', metadata={'source': 'source_1'}), …, Document(page_content='Alkaline mucus exists in the human eye, stomach, saliva, and cervix. In the stomach, alkaline mucus is secreted by gastric glands in the mucosa layer of the stomach wall.', metadata={'source': 'source_87'})]
 </br>
+</br>
 Used sources to generate answer: ['source_7', 'source_33', 'source_36']
+</br>
 </br>
 source_7: The mucosa-associated lymphoid tissue (MALT), also called mucosa-associated lymphatic tissue, is a diffuse system of small concentrations of lymphoid tissue found in various submucosal membrane sites of the body, such as the gastrointestinal tract, oral passage, nasopharyngeal tract, thyroid, breast, lung, salivary glands, eye, and skin.
 </br>
@@ -117,7 +121,7 @@ source_33: In fact, the intestine possesses the largest mass of lymphoid tissue 
 </br>
 source_36: Gut-associated lymphoid tissue (GALT) is a component of the mucosa-associated lymphoid tissue (MALT) which works in the immune system to protect the body from invasion in the gut.
 </details>
-
+* ![RaLM Web demo](images/RaLM_example.png)
 
 ### Acknowledgement
 * Majority of retrieval code comes from [princeton-nlp/Densephrases](https://github.com/princeton-nlp/DensePhrases) and included as [submodule](Densephrases) of this repository.
