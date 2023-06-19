@@ -121,6 +121,7 @@ source_33: In fact, the intestine possesses the largest mass of lymphoid tissue 
 </br>
 source_36: Gut-associated lymphoid tissue (GALT) is a component of the mucosa-associated lymphoid tissue (MALT) which works in the immune system to protect the body from invasion in the gut.
 </details>
+
 * ![RaLM Web demo](images/RaLM_example.png)
 
 ### Acknowledgement
