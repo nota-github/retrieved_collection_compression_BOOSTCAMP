@@ -16,6 +16,7 @@ docker run -v /path/to/parent_of_repository:/root --workdir /root --name {contai
 
 # in container
 cd retrieved_collection_compression_densephrase/DensePhrases
+sed -i s/"torch==1.9.0"/"torch>=1.9.0"/g requirements.txt # allow recent version of pytorch
 pip install -e . # editable mode install
 ```
 
