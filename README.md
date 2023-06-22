@@ -15,14 +15,14 @@ docker pull notadockerhub/collection_compression_densephrase:latest
 docker run -v /path/to/parent_of_repository:/root --workdir /root --name {container_name} --shm-size=2gb -it --gpus GPU_INDICES -t notadockerhub/collection_compression_densephrase
 
 # in container
-cd retrieved_collection_compression_densephrase/DensePhrases
+cd retrieved_collection_compression_BOOSTCAMP/DensePhrases
 sed -i s/"torch==1.9.0"/"torch>=1.9.0"/g requirements.txt # allow recent version of pytorch
 pip install -e . # editable mode install
 ```
 
 #### step 3. Setup path & variable
 ```bash
-cd /root/retrieved_collection_compression_densephrase
+cd /root/retrieved_collection_compression_BOOSTCAMP
 ./config.sh
 source ~/.bashrc
 ```
@@ -79,8 +79,8 @@ python eval.py --runfile_name run.tsv
 ```
 * output: mAR
 * baseline result
-  * retrieval_unit = sentence: mAR = 64.57 (starts from this baseline)
-  * retrieval_unit = paragraph: mAR = 59.72
+  * retrieval_unit = sentence: mAR = 60.71 (starts from this baseline)
+  * retrieval_unit = paragraph: mAR = 55.86
   * ![Recall@LM_vs_collectionLen](images/Recall@LM_vs_collectionLen.png)
 
 #### step 7. Query-side fine-tuning
