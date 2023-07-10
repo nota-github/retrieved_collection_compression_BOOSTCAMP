@@ -39,7 +39,7 @@ cd ../
 * index: pre-built index of wikipedia
   * we will not re-train passage encoder
 * wiki: pre-processed raw data for making index
-* pre-trained `query encoder` will be automatically downloaded from [huggingface modelhub](https://huggingface.co/princeton-nlp/densephrases-multi-query-multi)
+* pre-trained `query encoder` will be automatically downloaded from [huggingface modelhub](https://huggingface.co/princeton-nlp/densephrases-multi)
 
 #### step 5. Retrieve relevant sentences with varying #retrieve 
 * fixed setting
@@ -50,7 +50,7 @@ cd ../
 ```bash
 python retrieve.py \
   --batch_size BATCH_SIZE \
-  --query_encoder_name_or_dir princeton-nlp/densephrases-multi-query-multi \
+  --query_encoder_name_or_dir princeton-nlp/densephrases-multi \
   --index_name INDEX_NAME \
   --runfile_name run.tsv
 ```
@@ -85,7 +85,7 @@ python eval.py --runfile_name run.tsv
 
 #### step 7. Query-side fine-tuning
 ```bash
-make train-query MODEL_NAME=NEW_MODEL_SAVE_DIR DUMP_DIR=$SAVE_DIR/densephrases-multi_wiki-20181220/dump/ LOAD_DIR_OR_PRETRAINED_HF_NAME=princeton-nlp/densephrases-multi-query-nq
+make train-query MODEL_NAME=NEW_MODEL_SAVE_DIR DUMP_DIR=$SAVE_DIR/densephrases-multi_wiki-20181220/dump/ LOAD_DIR_OR_PRETRAINED_HF_NAME=princeton-nlp/densephrases-multi
 ```
 * assignment: adapt Densephrases to retrieval unit similar to sentence
   * modifyable parts
