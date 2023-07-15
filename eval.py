@@ -65,7 +65,8 @@ def eval(args):
                 if recall_by_collection_len_per_sample[q_idx, b_idx] > 0:
                     prev_non_zero = recall_by_collection_len_per_sample[q_idx, b_idx]
                 else:
-                    recall_by_collection_len_per_sample[q_idx, b_idx] = prev_non_zero
+                    recall_by_collection_len_per_sample[q_idx,
+                                                        b_idx] = prev_non_zero
 
         # prune unused bin indices
         bin_idx_max = int(max_word_count_sum / NUM_WORD_HIST_BIN_WIDTH)
@@ -73,7 +74,8 @@ def eval(args):
             :, : bin_idx_max + 1
         ]
 
-    recall_by_collection_len = np.mean(recall_by_collection_len_per_sample, axis=0)
+    recall_by_collection_len = np.mean(
+        recall_by_collection_len_per_sample, axis=0)
 
     print(recall_by_collection_len)
 
