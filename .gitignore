@@ -208,3 +208,4 @@ DensePhrases/cache
 DensePhrases/DensePhrases/cache
 DensePhrases/densephrases-data/*
 DensePhrases/outputs
+*.sh
