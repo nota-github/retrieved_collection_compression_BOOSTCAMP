@@ -6,7 +6,7 @@ import sys
 import numpy as np
 
 # fixed setting
-MAX_NUM_WORD_LARGE_ENOUGH = 25000  # don't allow collection larger than this
+MAX_NUM_WORD_LARGE_ENOUGH = 3000  # don't allow collection larger than this
 NUM_WORD_HIST_BIN_WIDTH = 100
 RUNFILE_DIR = "runs"
 QA_PATH = "DensePhrases/densephrases-data/open-qa/nq-open/test_preprocessed.json"
@@ -31,7 +31,7 @@ def eval(args):
     max_word_count_sum = 0  # will be used to truncate unnecessary bin_idx
     with open(runfile_path, "r") as fr:
         for q_idx, line in enumerate(fr):
-            qid, retrieved = line.split("\t")
+            qid, retrieved, rets = line.split("\t")
             retrieved = ast.literal_eval(retrieved)
             K = len(retrieved)
 
@@ -45,7 +45,8 @@ def eval(args):
                 word_count = len(text.split(" "))
                 word_count_sum += word_count
                 bin_idx = int(word_count_sum / NUM_WORD_HIST_BIN_WIDTH)
-
+                if bin_idx >= num_bin:
+                    break
                 # check whether text include answers or not
                 for l in range(num_ans_all):
                     ans = ans_list[l]
@@ -65,7 +66,8 @@ def eval(args):
                 if recall_by_collection_len_per_sample[q_idx, b_idx] > 0:
                     prev_non_zero = recall_by_collection_len_per_sample[q_idx, b_idx]
                 else:
-                    recall_by_collection_len_per_sample[q_idx, b_idx] = prev_non_zero
+                    recall_by_collection_len_per_sample[q_idx,
+                                                        b_idx] = prev_non_zero
 
         # prune unused bin indices
         bin_idx_max = int(max_word_count_sum / NUM_WORD_HIST_BIN_WIDTH)
@@ -73,7 +75,8 @@ def eval(args):
             :, : bin_idx_max + 1
         ]
 
-    recall_by_collection_len = np.mean(recall_by_collection_len_per_sample, axis=0)
+    recall_by_collection_len = np.mean(
+        recall_by_collection_len_per_sample, axis=0)
 
     print(recall_by_collection_len)
 
