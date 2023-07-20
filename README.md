@@ -96,11 +96,13 @@ make train-query MODEL_NAME=NEW_MODEL_SAVE_DIR DUMP_DIR=$SAVE_DIR/densephrases-m
 * After optimize your retriever, you can feed retrieved collection into generative language model (GLM).
 * Below command will launch `gradio` based web demo for GLM chatbot augmented with densephrase retriever.
 ```bash
-export OPENAI_API_KEY=YOUR_API_KEY; python run_ralm.py --index_name INDEX_NAME --question QUESTION
+export OPENAI_API_KEY=YOUR_API_KEY; python run_ralm.py --index_name INDEX_NAME
 ```
+* index_path: $SAVE_DIR/densephrases-multi_wiki-20181220/dump/$INDEX_NAME
+  * INDEX_NAME default: start/1048576_flat_OPQ96_small
 * GLM API
   * default: `gpt-3.5-turbo-16k-0613` of OpenAI
-  * HyperClova
+  * HyperClova studio
 <details>
   <summary> generated answer example</summary>
 Query: Where are mucosal associated lymphoid tissues present in the human body and why?
