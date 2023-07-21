@@ -32,6 +32,9 @@ class Retriever():
 
     def retrieve(self, single_query_or_queries_dict):
         queries_batch = []
+        R_UNIT = self.args.retrieve_mode
+        print(f'R_UNIT:{self.args.retrieve_mode}')
+        
         if isinstance(single_query_or_queries_dict, dict):  # batch search
             queries, qids = single_query_or_queries_dict['queries'], single_query_or_queries_dict['qids']
 
@@ -50,12 +53,12 @@ class Retriever():
                 idx = 0
                 for batch_query in tqdm(queries_batch):
                     # retrieve
-                    result = self.model.search(
-                        batch_query, retrieval_unit=R_UNIT, top_k=TOP_K)
+                    result, meta = self.model.search(
+                        batch_query, retrieval_unit=R_UNIT, top_k=TOP_K, return_meta=True)
 
                     # write to runfile
                     for i in range(len(result)):
-                        fw.write(f"{qids[idx]}\t{result[i]}\n")
+                        fw.write(f"{qids[idx]}\t{result[i]}\t{meta[i]}\n")
                         idx += 1
 
             return None
@@ -86,6 +89,8 @@ if __name__ == "__main__":
                         help="output runfile name which indluces query id and retrieved collection")
     parser.add_argument('--batch_size', type=int, default=1,
                         help="#query to process with parallel processing")
+    parser.add_argument('--retrieve_mode', type=str, default="sentence",
+                        help="R UNIT")
 
     args = parser.parse_args()
 

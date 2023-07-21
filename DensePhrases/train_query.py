@@ -13,7 +13,7 @@ import faiss
 
 from time import time
 from tqdm import tqdm
-from densephrases.utils.squad_utils import get_question_dataloader
+from densephrases.utils.squad_utils import get_question_dataloader, get_distill_dataloader
 from densephrases.utils.single_utils import load_encoder
 from densephrases.utils.open_utils import load_phrase_index, get_query2vec, load_qa_pairs
 from densephrases.utils.eval_utils import drqa_exact_match_score, drqa_regex_match_score, \
@@ -24,19 +24,22 @@ from densephrases import Options
 from transformers import (
     AdamW,
     get_linear_schedule_with_warmup,
+    AutoConfig,
+    AutoModel,
 )
+
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s', datefmt='%m/%d/%Y %H:%M:%S',
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
-
+from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 
 def train_query_encoder(args, mips=None):
     # Freeze one for MIPS
     device = 'cuda' if args.cuda else 'cpu'
     logger.info("Loading pretrained encoder: this one is for MIPS (fixed)")
-    pretrained_encoder, tokenizer, _ = load_encoder(device, args)
-
+    pretrained_encoder, tokenizer, config = load_encoder(device, args)
+    
     # Train a copy of it
     logger.info("Copying target encoder")
     target_encoder = copy.deepcopy(pretrained_encoder)
@@ -87,35 +90,73 @@ def train_query_encoder(args, mips=None):
         total_accs_k = []
 
         # Load training dataset
-        q_ids, questions, answers, titles = load_qa_pairs(args.train_path, args, shuffle=True)
+        q_ids, questions, answers, titles, contexts = load_qa_pairs(args.train_path, args, shuffle=True)
         pbar = tqdm(get_top_phrases(
             mips, q_ids, questions, answers, titles, pretrained_encoder, tokenizer,
             args.per_gpu_train_batch_size, args)
         )
 
         for step_idx, (q_ids, questions, answers, titles, outs) in enumerate(pbar):
-            train_dataloader, _, _ = get_question_dataloader(
-                questions, tokenizer, args.max_query_length, batch_size=args.per_gpu_train_batch_size
-            )
-            svs, evs, tgts, p_tgts = annotate_phrase_vecs(mips, q_ids, questions, answers, titles, outs, args)
+            if args.distillation:
+                train_dataloader = get_distill_dataloader(args.data_dir, args.train_file ,tokenizer, args)
+                args.lambda_kl = 2.0
+                cross_encoder = torch.load(
+                os.path.join("/level3_nlp_finalproject-nlp-06/DensePhrases/outputs/spanbert-base-cased-nq", "pytorch_model.bin"), map_location=torch.device('cpu')
+                )
+                new_qd = {n[len('bert')+1:]: p for n, p in cross_encoder.items() if 'bert' in n}
+                new_linear = {n[len('qa_outputs')+1:]: p for n, p in cross_encoder.items() if 'qa_outputs' in n}
+                qd_config, unused_kwargs = AutoConfig.from_pretrained(
+                    args.pretrained_name_or_path,
+                    cache_dir=args.cache_dir if args.cache_dir else None,
+                    return_unused_kwargs=True
+                )
+                qd_pretrained = AutoModel.from_pretrained(
+                    args.pretrained_name_or_path,
+                    config=qd_config,
+                    cache_dir=args.cache_dir if args.cache_dir else None,
+                )
+                target_encoder.cross_encoder = qd_pretrained
+                target_encoder.cross_encoder.load_state_dict(new_qd)
+                target_encoder.qa_outputs = torch.nn.Linear(config.hidden_size, 2)
+                target_encoder.qa_outputs.load_state_dict(new_linear)
+                logger.info(f'Distill with teacher model {args.teacher_dir}')
+                
+            else:
+                train_dataloader, _, _ = get_question_dataloader(
+                    questions, tokenizer, args.max_query_length, batch_size=args.per_gpu_train_batch_size
+                )
+            svs, evs, tgts, p_tgts, c_tgts = annotate_phrase_vecs(mips, q_ids, questions, answers, titles, outs, args, contexts)
 
             target_encoder.train()
             svs_t = torch.Tensor(svs).to(device)
             evs_t = torch.Tensor(evs).to(device)
             tgts_t = [torch.Tensor([tgt_ for tgt_ in tgt if tgt_ is not None]).to(device) for tgt in tgts]
             p_tgts_t = [torch.Tensor([tgt_ for tgt_ in tgt if tgt_ is not None]).to(device) for tgt in p_tgts]
+            c_tgts_t = [torch.Tensor([tgt_ for tgt_ in tgt if tgt_ is not None]).to(device) for tgt in c_tgts]
 
             # Train query encoder
             assert len(train_dataloader) == 1
             for batch in train_dataloader:
                 batch = tuple(t.to(device) for t in batch)
-                loss, accs = target_encoder.train_query(
-                    input_ids_=batch[0], attention_mask_=batch[1], token_type_ids_=batch[2],
+                if args.distillation:
+                    loss, accs = target_encoder.train_query(
+                    input_ids_=batch[6], attention_mask_=batch[7], token_type_ids_=batch[8],
                     start_vecs=svs_t,
                     end_vecs=evs_t,
                     targets=tgts_t,
                     p_targets=p_tgts_t,
+                    c_targets=c_tgts_t,
+                    input_ids=batch[0], attention_mask=batch[1], token_type_ids=batch[2],
+                    all_stoken_index=batch[10], all_etoken_index=batch[11],
                 )
+                else:
+                    loss, accs = target_encoder.train_query(
+                        input_ids_=batch[0], attention_mask_=batch[1], token_type_ids_=batch[2],
+                        start_vecs=svs_t,
+                        end_vecs=evs_t,
+                        targets=tgts_t,
+                        p_targets=p_tgts_t,
+                    )
 
                 # Optimize, get acc and report
                 if loss is not None:
@@ -168,6 +209,10 @@ def train_query_encoder(args, mips=None):
             save_path = args.output_dir
             if not os.path.exists(save_path):
                 os.makedirs(save_path)
+            # Remove teacher before saving
+            if args.distillation:
+                del target_encoder.cross_encoder
+                del target_encoder.qa_outputs
             target_encoder.save_pretrained(save_path)
             logger.info(f"Saved best model with acc {best_acc:.3f} into {save_path}")
 
@@ -188,9 +233,9 @@ def get_top_phrases(mips, q_ids, questions, answers, titles, query_encoder, toke
         query_encoder=query_encoder, tokenizer=tokenizer, args=args, batch_size=batch_size
     )
     for q_idx in tqdm(range(0, len(questions), step)):
-        outs = query2vec(questions[q_idx:q_idx+step])
-        start = np.concatenate([out[0] for out in outs], 0)
-        end = np.concatenate([out[1] for out in outs], 0)
+        outs = query2vec(questions[q_idx:q_idx+step]) # batch size 만큼 question 가지고 와서 vector 화
+        start = np.concatenate([out[0] for out in outs], 0) # start position 찾을 vector
+        end = np.concatenate([out[1] for out in outs], 0) # end position 찾을 vector
         query_vec = np.concatenate([start, end], 1)
 
         outs = search_fn(
@@ -205,10 +250,9 @@ def get_top_phrases(mips, q_ids, questions, answers, titles, query_encoder, toke
         )
 
 
-def annotate_phrase_vecs(mips, q_ids, questions, answers, titles, phrase_groups, args):
+def annotate_phrase_vecs(mips, q_ids, questions, answers, titles, phrase_groups, args, contexts):
     assert mips is not None
     batch_size = len(answers)
-
     # Phrase groups are in size of [batch, top_k, values]
     # phrase_groups = [[(
     #     out_['doc_idx'], out_['start_idx'], out_['end_idx'], out_['answer'],
@@ -254,14 +298,15 @@ def annotate_phrase_vecs(mips, q_ids, questions, answers, titles, phrase_groups,
     # TODO: implement dynamic label_strategy based on the task name (label_strat = dynamic)
 
     # Annotate for L_phrase
-    if 'phrase' in args.label_strat.split(','):
+    if 'phrase' in args.label_strat.split(','): #(12, 200 11) -> 11개가 각각의 phrase group 이네
         match_fns = [
             drqa_regex_match_score if args.regex or ('trec' in q_id.lower()) else drqa_exact_match_score for q_id in q_ids
         ]
+        # 별도의 arg 없으면 EM
         targets = [
             [drqa_metric_max_over_ground_truths(match_fn, phrase['answer'], answer_set) for phrase in phrase_group]
             for phrase_group, answer_set, match_fn in zip(phrase_groups, answers, match_fns)
-        ]
+        ] # score 를 반환 - EM 일 경우에는 normalize 해서 score 산출
         targets = [[ii if val else None for ii, val in enumerate(target)] for target in targets]
 
     # Annotate for L_doc
@@ -270,9 +315,13 @@ def annotate_phrase_vecs(mips, q_ids, questions, answers, titles, phrase_groups,
             [any(phrase['title'][0].lower() == tit.lower() for tit in title) for phrase in phrase_group]
             for phrase_group, title in zip(phrase_groups, titles)
         ]
-        p_targets = [[ii if val else None for ii, val in enumerate(target)] for target in p_targets]
+        p_targets = [[ii if val else None for ii, val in enumerate(target)] for target in p_targets] # retrieve 된 title 중 title 을 찾은 경우 몇번째에서 찾았는지 기록하고 넘겨줌
 
-    return start_vecs, end_vecs, targets, p_targets
+    c_targets = [[(phrase['context'].lower() == context.lower()) for phrase in phrase_group]
+            for phrase_group, context in zip(phrase_groups, contexts)]
+    
+    
+    return start_vecs, end_vecs, targets, p_targets, c_targets
 
 
 if __name__ == '__main__':
@@ -296,7 +345,8 @@ if __name__ == '__main__':
         # Train
         mips = load_phrase_index(args)
         train_query_encoder(args, mips)
-
+       
+        
         # Eval
         args.load_dir = args.output_dir
         logger.info(f"Evaluating {args.load_dir}")

@@ -185,6 +185,7 @@ class Options():
         self.parser.add_argument("--adam_epsilon", default=1e-8, type=float, help="Epsilon for Adam optimizer.")
         self.parser.add_argument("--max_grad_norm", default=1.0, type=float, help="Max gradient norm.")
         self.parser.add_argument('--label_strat', default='phrase', type=str, help="label strat={phrase|doc|phrase,doc}")
+        self.parser.add_argument('--distillation', action="store_true", help="Distillation option while QSFT")
 
     def add_demo_options(self):
         self.parser.add_argument('--base_ip', default='http://127.0.0.1')

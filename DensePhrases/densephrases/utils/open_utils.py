@@ -106,6 +106,7 @@ def load_qa_pairs(data_path, args, q_idx=None, draft_num_examples=100, shuffle=F
     questions = []
     answers = []
     titles = []
+    contexts = []
     data = json.load(open(data_path))['data']
     for data_idx, item in enumerate(data):
         if q_idx is not None:
@@ -119,12 +120,15 @@ def load_qa_pairs(data_path, args, q_idx=None, draft_num_examples=100, shuffle=F
             question = question[max(question.index('[START_ENT]')-300, 0):question.index('[END_ENT]')+300]
         answer = item['answers']
         title = item.get('titles', [''])
+        context = item.get('context', [''])
         if len(answer) == 0:
             continue
         q_ids.append(q_id)
         questions.append(question)
         answers.append(answer)
         titles.append(title)
+        contexts.append(context)
+        
     questions = [query[:-1] if query.endswith('?') else query for query in questions]
     # questions = [query.lower() for query in questions] # force lower query
 
@@ -156,6 +160,6 @@ def load_qa_pairs(data_path, args, q_idx=None, draft_num_examples=100, shuffle=F
             print(e)
 
     logger.info(f'Loading {len(questions)} questions from {data_path}')
-    logger.info(f'Sample Q ({q_ids[0]}): {questions[0]}, A: {answers[0]}, Title: {titles[0]}')
-    return q_ids, questions, answers, titles
+    logger.info(f'Sample Q ({q_ids[0]}): {questions[0]}, A: {answers[0]}, Title: {titles[0]}, Context: {contexts[0]}')
+    return q_ids, questions, answers, titles, contexts
 

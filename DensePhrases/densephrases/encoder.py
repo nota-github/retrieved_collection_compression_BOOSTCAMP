@@ -370,8 +370,12 @@ class Encoder(PreTrainedModel):
         self,
         input_ids_=None, attention_mask_=None, token_type_ids_=None,
         start_vecs=None, end_vecs=None,
-        targets=None, p_targets=None,
+        targets=None, p_targets=None, c_targets=None,
+        input_ids=None, attention_mask=None, token_type_ids=None,
+        all_stoken_index=None, all_etoken_index=None,
+        
     ):
+        self.lambda_kl = 2.0
         # Skip if no targets for phrases
         if start_vecs is not None:
             if all([len(t) == 0 for t in targets]) and all([len(t) == 0 for t in p_targets]):
@@ -381,15 +385,65 @@ class Encoder(PreTrainedModel):
         query_start, query_end = self.embed_query(input_ids_, attention_mask_, token_type_ids_)
 
         # Start/end dense logits
-        start_logits = query_start.matmul(start_vecs.transpose(1, 2)).squeeze(1)
+        # start_vecs (12,200,768)
+        start_logits = query_start.matmul(start_vecs.transpose(1, 2)).squeeze(1) # (12,1,768)x(12, 768, 200) -> [12, 200]
         end_logits = query_end.matmul(end_vecs.transpose(1, 2)).squeeze(1)
         logits = start_logits + end_logits
+        
+        # retrieve 된 top k 개의 phrase 들의 voctor 를 query vector 와 내적하여 각각의 phrase 에 대해 score 를 산출함
+        '''
+        distillation loss
+        '''
+        if self.lambda_kl > 0:
+            self.cross_encoder.eval()
+            with torch.no_grad():
+                new_input_ids, new_attention_mask, new_token_type_ids = self.merge_inputs(
+                    input_ids_, attention_mask_, input_ids, attention_mask
+                )
+                outputs_qd = self.cross_encoder(
+                    new_input_ids,
+                    attention_mask=new_attention_mask,
+                    token_type_ids=new_token_type_ids,
+                )
+                tmp_sequence_output = outputs_qd[0]
+                sequence_output = []
+                for seq_output, att_mask_, input_id in zip(tmp_sequence_output, attention_mask_, input_ids):
+                    title_sep = (input_id == self.tokenizer.sep_token_id).nonzero(as_tuple=True)[0][0]
+                    title_mask = torch.zeros(size=(title_sep.item(),seq_output.shape[1])).to(self.device)
+                    new_logits = self.qa_outputs(torch.cat((
+                        seq_output[:1], title_mask,
+                        seq_output[att_mask_.sum():att_mask_.sum()+input_ids.shape[1]-1-title_sep.item()])
+                    ))
+                    new_logits[1:title_sep,:] = -1e4
+                    sequence_output.append(new_logits)
+                sequence_output = torch.stack(sequence_output)
 
+                start_logits_qd, end_logits_qd = sequence_output.split(1, dim=-1)
+                start_logits_qd, end_logits_qd = start_logits_qd.squeeze(-1), end_logits_qd.squeeze(-1)
+
+            # Distill logits
+            temperature = 1.0
+            start_logits = start_logits / temperature
+            end_logits = end_logits / temperature
+            start_logits_qd = start_logits_qd / temperature
+            end_logits_qd = end_logits_qd / temperature
+            kl_loss = nn.KLDivLoss(reduction='none')
+            kl_start = (kl_loss(
+                log_softmax(start_logits, dim=1), target=softmax(start_logits_qd[:,:start_logits.size(1)], dim=1)
+            ).sum(1)).mean(0)
+            kl_end = (kl_loss(
+                log_softmax(end_logits, dim=1), target=softmax(end_logits_qd[:,:end_logits.size(1)], dim=1)
+            ).sum(1)).mean(0)
+            total_loss = total_loss + (kl_start + kl_end)/2.0 * self.lambda_kl
+            # outputs = (start_logits_qd, end_logits_qd, filter_start_logits, filter_end_logits) # test cross encoder
+    
+        ########## Distillation End
+        
         # L_phrase: MML over phrase-level annotation
         log_probs = 0.0
         MIN_PROB = 1e-7
         if not all([len(t) == 0 for t in targets]):
-            log_probs = [
+            log_probs = [ # 정답이 있는 logit (phrase) 이 높게 되어 있는지를 확인하고 nll -> 1에 가까울 수록 loss 는 0 에 가까워짐 (정답을 정답이라고 옳게 예측하면 loss 0)
                 -torch.log(softmax(lg, -1)[tg.long()].sum().clamp(MIN_PROB, 1)) for lg, tg in zip(logits, targets)
                 if len(tg) > 0
             ]
@@ -409,8 +463,8 @@ class Encoder(PreTrainedModel):
         # L_doc: MML over passage-level annotation
         if not all([len(t) == 0 for t in p_targets]):
             p_start_logits = start_logits.clone()
-            for b_idx, p_start_logit in enumerate(p_start_logits):
-                p_start_logits[b_idx][targets[b_idx].long()] = -1e9
+            for b_idx, p_start_logit in enumerate(p_start_logits): # batch index 와 logit
+                p_start_logits[b_idx][targets[b_idx].long()] = -1e9 # phrase 와 같이 사용할 때 phrase 에서 정답이 되는 애들의 점수를 최대한 낮춰준다.
             p_start_loss = [
                 -torch.log(softmax(lg, -1)[tg.long()].sum().clamp(MIN_PROB, 1)) for lg, tg in zip(p_start_logits, p_targets)
                 if len(tg) > 0
