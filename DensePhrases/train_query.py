@@ -39,7 +39,7 @@ def train_query_encoder(args, mips=None):
     device = 'cuda' if args.cuda else 'cpu'
     logger.info("Loading pretrained encoder: this one is for MIPS (fixed)")
     pretrained_encoder, tokenizer, config = load_encoder(device, args)
-    
+
     # Train a copy of it
     logger.info("Copying target encoder")
     target_encoder = copy.deepcopy(pretrained_encoder)
@@ -92,16 +92,21 @@ def train_query_encoder(args, mips=None):
         # Load training dataset
         q_ids, questions, answers, titles, contexts = load_qa_pairs(args.train_path, args, shuffle=True)
         pbar = tqdm(get_top_phrases(
-            mips, q_ids, questions, answers, titles, pretrained_encoder, tokenizer,
+            mips, q_ids, questions, answers, titles, contexts, pretrained_encoder, tokenizer,
             args.per_gpu_train_batch_size, args)
         )
 
-        for step_idx, (q_ids, questions, answers, titles, outs) in enumerate(pbar):
+        for step_idx, (q_ids, questions, answers, titles, contexts, outs) in enumerate(pbar):
+            svs, evs, tgts, p_tgts, start_positions, end_positions = annotate_phrase_vecs(mips, q_ids, questions, answers, titles, outs, args, contexts)
             if args.distillation:
-                train_dataloader = get_distill_dataloader(args.data_dir, args.train_file ,tokenizer, args)
+                examles_list = [{'id':q_id, 'question':question, 'context':context, 'titles':title, 'answers':answer, 'answer_start_idxs': start_pos, 'answer_end_idxs':end_pos}
+                for q_id, question, context, title, answer, start_pos, end_pos in zip(q_ids, questions, contexts, titles, answers, start_positions, end_positions)]
+                
+                train_dataloader,all_stoken_index, all_etoken_index = get_distill_dataloader(examles_list, tokenizer, args)
+                
                 args.lambda_kl = 2.0
                 cross_encoder = torch.load(
-                os.path.join("/level3_nlp_finalproject-nlp-06/DensePhrases/outputs/spanbert-base-cased-nq", "pytorch_model.bin"), map_location=torch.device('cpu')
+                os.path.join("/opt/ml/level3_nlp_finalproject-nlp-06/DensePhrases/outputs/spanbert-base-cased-nq", "pytorch_model.bin"), map_location=torch.device('cpu')
                 )
                 new_qd = {n[len('bert')+1:]: p for n, p in cross_encoder.items() if 'bert' in n}
                 new_linear = {n[len('qa_outputs')+1:]: p for n, p in cross_encoder.items() if 'qa_outputs' in n}
@@ -119,13 +124,12 @@ def train_query_encoder(args, mips=None):
                 target_encoder.cross_encoder.load_state_dict(new_qd)
                 target_encoder.qa_outputs = torch.nn.Linear(config.hidden_size, 2)
                 target_encoder.qa_outputs.load_state_dict(new_linear)
-                logger.info(f'Distill with teacher model {args.teacher_dir}')
                 
             else:
                 train_dataloader, _, _ = get_question_dataloader(
                     questions, tokenizer, args.max_query_length, batch_size=args.per_gpu_train_batch_size
                 )
-            svs, evs, tgts, p_tgts, c_tgts = annotate_phrase_vecs(mips, q_ids, questions, answers, titles, outs, args, contexts)
+            
 
             target_encoder.train()
             svs_t = torch.Tensor(svs).to(device)
@@ -147,7 +151,7 @@ def train_query_encoder(args, mips=None):
                     p_targets=p_tgts_t,
                     c_targets=c_tgts_t,
                     input_ids=batch[0], attention_mask=batch[1], token_type_ids=batch[2],
-                    all_stoken_index=batch[10], all_etoken_index=batch[11],
+                    all_stoken_index=all_stoken_index, all_etoken_index=all_etoken_index,
                 )
                 else:
                     loss, accs = target_encoder.train_query(
@@ -224,7 +228,7 @@ def train_query_encoder(args, mips=None):
     logger.info(f"Best model has acc {best_acc:.3f} saved as {save_path}")
 
 
-def get_top_phrases(mips, q_ids, questions, answers, titles, query_encoder, tokenizer, batch_size, args):
+def get_top_phrases(mips, q_ids, questions, answers, titles, contexts, query_encoder, tokenizer, batch_size, args):
     # Search
     step = batch_size
     phrase_idxs = []
@@ -246,11 +250,11 @@ def get_top_phrases(mips, q_ids, questions, answers, titles, query_encoder, toke
         )
         yield (
             q_ids[q_idx:q_idx+step], questions[q_idx:q_idx+step], answers[q_idx:q_idx+step],
-            titles[q_idx:q_idx+step], outs
+            titles[q_idx:q_idx+step], contexts[q_idx:q_idx+step], outs
         )
 
 
-def annotate_phrase_vecs(mips, q_ids, questions, answers, titles, phrase_groups, args, contexts):
+def annotate_phrase_vecs(mips, q_ieds, questions, answers, titles, phrase_groups, args, contexts):
     assert mips is not None
     batch_size = len(answers)
     # Phrase groups are in size of [batch, top_k, values]
@@ -268,6 +272,7 @@ def annotate_phrase_vecs(mips, q_ids, questions, answers, titles, phrase_groups,
         'context': '', 'title': ['']
     }
 
+    # phrase_group (12,200)
     # Pad phrase groups (two separate top-k coming from start/end, so pad with top_k*2)
     for b_idx, phrase_idx in enumerate(phrase_groups):
         while len(phrase_groups[b_idx]) < args.top_k*2:
@@ -317,11 +322,28 @@ def annotate_phrase_vecs(mips, q_ids, questions, answers, titles, phrase_groups,
         ]
         p_targets = [[ii if val else None for ii, val in enumerate(target)] for target in p_targets] # retrieve 된 title 중 title 을 찾은 경우 몇번째에서 찾았는지 기록하고 넘겨줌
 
-    c_targets = [[(phrase['context'].lower() == context.lower()) for phrase in phrase_group]
-            for phrase_group, context in zip(phrase_groups, contexts)]
+    start_positions = None
+    end_positions = None
     
-    
-    return start_vecs, end_vecs, targets, p_targets, c_targets
+    # Annotate for distillation
+    if args.distillation:
+        start_positions = []
+        end_positions = []
+        for phrase_group, context in zip(phrase_groups, contexts):
+            start_position = []
+            end_position = []
+            for phrase in phrase_group:
+                if context.strip().lower() in phrase['context'].strip().lower(): # retrieved phrase is in the gold context
+                    start_position.append(phrase['start_pos'])
+                    end_position.append(phrase['end_pos']-1)
+                else:
+                    start_position.append(None)
+                    end_position.append(None)
+            start_positions.append(start_position)
+            end_positions.append(end_position)
+                    
+
+    return start_vecs, end_vecs, targets, p_targets, start_positions, end_positions
 
 
 if __name__ == '__main__':

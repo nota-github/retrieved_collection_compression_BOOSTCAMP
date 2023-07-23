@@ -160,8 +160,9 @@ def squad_convert_example_to_features(example, max_seq_length, doc_stride, max_q
                 tok_to_orig_index.append(i)
                 all_doc_tokens.append(sub_token)
 
-        answer_stoken_idxs = [orig_to_tok_index[st] for st in example.answer_stoken_idxs]
-        answer_etoken_idxs = [orig_to_tok_index[et] for et in example.answer_etoken_idxs]
+        if example.answer_stoken_idxs:
+            answer_stoken_idxs = [orig_to_tok_index[st] for st in example.answer_stoken_idxs]
+            answer_etoken_idxs = [orig_to_tok_index[et] for et in example.answer_etoken_idxs]
         
         # Add negatives when there are
         all_neg_tokens = []
@@ -567,10 +568,6 @@ def squad_convert_examples_to_features(
         all_p_mask = torch.tensor([f.p_mask for f in features], dtype=torch.float)
         all_is_impossible = torch.tensor([f.is_impossible for f in features], dtype=torch.float)
 
-        # answer token position 얻기 위해
-        if features[0].answer_stoken_idxs is not None:
-            all_stoken_index = [f.answer_stoken_idxs[0] for f in features]
-            all_etoken_index = [f.answer_etoken_idxs[0] for f in features]
         # Context-side features
         if not question_only:
             all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
@@ -616,16 +613,8 @@ def squad_convert_examples_to_features(
                 dataset = TensorDataset(
                     all_input_ids_, all_attention_masks_, all_token_type_ids_, all_feature_index_
                 )
-            else:
-                if features[0].answer_stoken_idxs is not None: # for distillation in QSFT
-                    all_feature_index = torch.arange(all_input_ids.size(0), dtype=torch.long)
-                    dataset = TensorDataset(
-                        all_input_ids, all_attention_masks, all_token_type_ids,
-                        all_feature_index, all_cls_index, all_p_mask,
-                        all_input_ids_, all_attention_masks_, all_token_type_ids_,
-                        all_title_offset, all_stoken_index, all_etoken_index,
-                    )
-                else:    
+            else: 
+                # also get distill
                     all_feature_index = torch.arange(all_input_ids.size(0), dtype=torch.long)
                     dataset = TensorDataset(
                         all_input_ids, all_attention_masks, all_token_type_ids,
@@ -969,90 +958,6 @@ class SquadProcessor(DataProcessor):
             logger.info(f"Deduplication: {orig_len} => {len(examples)} examples")
         return examples
     
-    def get_train_examples_with_distill(self, data_dir, filename=None, draft=False, context_only=False, skip_no_answer=False,
-            max_q=None, args=None):
-        """
-        Returns the training examples from the data directory.
-
-        Args:
-            data_dir: Directory containing the data files used for training and evaluating.
-            filename: None by default, specify this if the training file has a different name than the original one
-                which is `train-v1.1.json` and `train-v2.0.json` for squad versions 1.1 and 2.0 respectively.
-
-        """
-        if data_dir is None:
-            data_dir = ""
-
-        if self.train_file is None:
-            raise ValueError("SquadProcessor should be instantiated via SquadV1Processor or SquadV2Processor")
-
-        with open(
-            os.path.join(data_dir, self.train_file if filename is None else filename), "r", encoding="utf-8"
-        ) as reader:
-            
-            # SQuAD-style json file
-            if filename.endswith('json'):
-                input_data = json.load(reader)["data"]
-                return self._create_examples_for_pretrained_data(
-                        input_data, "train", draft, context_only=context_only, skip_no_answer=skip_no_answer, args=args)
-            elif filename.endswith('jsonl'):
-                json_list = list(reader)
-                return self._create_examples_qa_only(json_list, "train", draft, args=args)
-    
-    def _create_examples_for_pretrained_data(self, input_data, set_type, draft, context_only, draft_num_examples=1002, min_len=0, max_len=2500,
-            skip_no_answer=False, args=None):
-        is_training = set_type == "train"
-        examples = []
-        length_stat = []
-        max_cut_cnt = 0
-        min_cut_cnt = 0
-        non_para_cnt = 0
-        impossible_cnt = 0
-        total_cnt = 0
-        no_neg_cnt = 0
-        
-        examples = []
-        for doc_idx, entry in tqdm(enumerate(input_data)):
-            title = entry["titles"][0]
-            short_context = []
-            par_idx = 0
-            
-            context_text = entry["context"]
-            if ' ' in context_text: # non-breaking space '\xa0' to ' '
-                context_text = context_text.replace(' ', ' ')
-            total_cnt += 1
-
-            # Pre-processing questions
-            qas_id = entry['id']
-            question_text = entry["question"].strip()
-            if question_text.endswith('?'):
-                    question_text = question_text[:-1]
-            start_position_character = None
-            start_position_list = entry['answer_starts']
-            answer_text = entry['answers'][0]
-            answers = entry['answers']
-            
-            example = SquadExample(
-                qas_id=qas_id,
-                question_text=question_text,
-                context_text=context_text,
-                answer_text=answer_text,
-                start_position_character=start_position_character,
-                title=title,
-                doc_idx=doc_idx,
-                par_idx=par_idx,
-                is_impossible=False,
-                answers=answers,
-                start_position_list = start_position_list,
-            )
-            examples.append(example)
-            par_idx += 1
-
-        if is_training:
-            orig_len = len(examples)
-            examples = list(set(examples)) # deduplicate
-            return examples
-    
     def _create_examples_qa_only(self, json_list, set_type, draft, draft_num_examples=100000, args=None):
         assert set_type == "train"
         examples = []
@@ -1148,6 +1053,7 @@ class SquadExample(object):
         tokenize=True,
         hard_neg_pids=None,
         start_position_list = None,
+        end_position_list = None,
     ):
         self.qas_id = qas_id
         self.doc_idx = doc_idx
@@ -1162,8 +1068,13 @@ class SquadExample(object):
         self.answers = answers
         self.hard_neg_pids = hard_neg_pids
         self.start_position_character = start_position_character
+        # start & end position for distillation
         self.start_position_list = start_position_list
+        self.end_position_list = end_position_list
+        ##
         self.start_position, self.end_position = -1, -1 # 0, 0
+        self.answer_stoken_idxs = None
+        self.answer_etoken_idxs = None
 
         if not tokenize:
             return
@@ -1172,8 +1083,11 @@ class SquadExample(object):
         self.doc_tokens, self.char_to_word_offset = self.create_tokens(self.context_text)
         self.title_tokens, _ = self.create_tokens(self.title)
 
-        self.answer_stoken_idxs = [self.char_to_word_offset[pos] for pos in self.start_position_list]
-        self.answer_etoken_idxs = [self.char_to_word_offset[pos+len(self.answers[i])-1] for i,pos in enumerate(self.start_position_list)]
+        # retrieved phrase's start/end position -> start/end token index
+        # (top-k *2)
+        if self.start_position_list is not None:
+            self.answer_stoken_idxs = [self.char_to_word_offset[pos] for pos in self.start_position_list]
+            self.answer_etoken_idxs = [self.char_to_word_offset[pos] for pos in self.end_position_list]
         
         # Same pre-processing for neg tokens
         self.neg_doc_tokens, _ = self.create_tokens(self.neg_context_text)
@@ -1730,53 +1644,40 @@ def read_text_examples(input_file, draft=False, draft_num_examples=12):
     logger.info(f'Reading {len(examples)} examples')
     return examples
 
-def get_distill_dataloader(data_dir, filename, tokenizer, args, for_save=False):
-    cached_features_file = os.path.join(
-        args.cache_dir,
-        "cached_{}_{}_{}".format(
-            os.path.basename(filename).replace('.', '_'),
-            list(filter(None, args.output_dir.split("/"))).pop(),
-            str(args.max_seq_length)
-        ),
+def get_distill_dataloader(examples_list, tokenizer, args):
+    examples = [SquadExample(
+                qas_id=example['id'],
+                question_text=example['question'],
+                context_text=example['context'],
+                answer_text=example['answers'][0],
+                start_position_character=None,
+                title=example['titles'],
+                doc_idx=idx,
+                is_impossible=False,
+                answers=example['answers'],
+                start_position_list = example['answer_start_idxs'],
+                end_position_list = example['answer_end_idxs'],
+            ) for idx, example in enumerate(examples_list)]
+    
+    features, dataset = squad_convert_examples_to_features(
+        examples=examples,
+        tokenizer=tokenizer,
+        max_seq_length=384,
+        doc_stride=128,
+        max_query_length=64,
+        is_training=False,
+        return_dataset="pt",
+        threads=1,
+        question_only=False,
+        append_title=False,
+        tqdm_enabled=False,
     )
-    
-    if not for_save:
-        # load
-        if os.path.exists(cached_features_file):
-            logger.info("Loading features from cached file %s", cached_features_file)
-            features_and_dataset = torch.load(cached_features_file)
-            features, dataset, examples = (
-                features_and_dataset["features"],
-                features_and_dataset["dataset"],
-                features_and_dataset["examples"],
-            )
-        else:
-            logger.warning(f'could not access to {cached_features_file}')
-    
-    else:
-        processor = SquadV1Processor()
-        examples = processor.get_train_examples_with_distill(data_dir, filename=filename, draft=False,
-                        context_only=False, skip_no_answer=False, args=args)
-        features, dataset = squad_convert_examples_to_features(
-                    examples=examples,
-                    tokenizer=tokenizer,
-                    max_seq_length=384,
-                    doc_stride=128,
-                    max_query_length=64,
-                    is_training=False,
-                    return_dataset="pt",
-                    threads=20,
-                    context_only=False,
-                    append_title=False,
-                    skip_no_answer=False,
-            )
-        logger.info("Saving features into cached file %s", cached_features_file)
-        torch.save({"features": features, "dataset": dataset, "examples": examples}, cached_features_file)
-        
-    smr = SequentialSampler(dataset)
-    tt_dataloader = DataLoader(dataset, sampler=smr, batch_size=args.per_gpu_train_batch_size)
-    
-    return tt_dataloader
+    all_stoken_index = [f.answer_stoken_idxs for f in features]
+    all_etoken_index = [f.answer_etoken_idxs for f in features]
+    eval_sampler = SequentialSampler(dataset)
+    eval_dataloader = DataLoader(dataset, sampler=eval_sampler, batch_size=args.per_gpu_train_batch_size)
+
+    return eval_dataloader, all_stoken_index, all_etoken_index
 
 def get_question_dataloader(questions, tokenizer, max_query_length=64, batch_size=64):
     examples = [SquadExample(qas_id=q_idx, question_text=q) for q_idx, q in enumerate(questions)]
