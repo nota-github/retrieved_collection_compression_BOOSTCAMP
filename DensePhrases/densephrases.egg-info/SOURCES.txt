@@ -1,0 +1,8 @@
+LICENSE
+README.md
+setup.py
+densephrases.egg-info/PKG-INFO
+densephrases.egg-info/SOURCES.txt
+densephrases.egg-info/dependency_links.txt
+densephrases.egg-info/requires.txt
+densephrases.egg-info/top_level.txt
