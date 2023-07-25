@@ -161,8 +161,8 @@ def squad_convert_example_to_features(example, max_seq_length, doc_stride, max_q
                 all_doc_tokens.append(sub_token)
 
         if example.answer_stoken_idxs:
-            answer_stoken_idxs = [orig_to_tok_index[st] for st in example.answer_stoken_idxs]
-            answer_etoken_idxs = [orig_to_tok_index[et] for et in example.answer_etoken_idxs]
+            answer_stoken_idxs = [orig_to_tok_index[st] if st != None else None for st in example.answer_stoken_idxs]
+            answer_etoken_idxs = [orig_to_tok_index[et] if et != None else None for et in example.answer_etoken_idxs]
         
         # Add negatives when there are
         all_neg_tokens = []
@@ -1086,8 +1086,8 @@ class SquadExample(object):
         # retrieved phrase's start/end position -> start/end token index
         # (top-k *2)
         if self.start_position_list is not None:
-            self.answer_stoken_idxs = [self.char_to_word_offset[pos] for pos in self.start_position_list]
-            self.answer_etoken_idxs = [self.char_to_word_offset[pos] for pos in self.end_position_list]
+            self.answer_stoken_idxs = [self.char_to_word_offset[pos] if pos != None else None for pos in self.start_position_list]
+            self.answer_etoken_idxs = [self.char_to_word_offset[pos] if pos != None else None for pos in self.end_position_list]
         
         # Same pre-processing for neg tokens
         self.neg_doc_tokens, _ = self.create_tokens(self.neg_context_text)
@@ -1651,7 +1651,7 @@ def get_distill_dataloader(examples_list, tokenizer, args):
                 context_text=example['context'],
                 answer_text=example['answers'][0],
                 start_position_character=None,
-                title=example['titles'],
+                title=example['titles'][0],
                 doc_idx=idx,
                 is_impossible=False,
                 answers=example['answers'],
@@ -1672,8 +1672,9 @@ def get_distill_dataloader(examples_list, tokenizer, args):
         append_title=False,
         tqdm_enabled=False,
     )
-    all_stoken_index = [f.answer_stoken_idxs for f in features]
-    all_etoken_index = [f.answer_etoken_idxs for f in features]
+    all_stoken_index = [[None if i is None else i+1 for i in f.answer_stoken_idxs[0]] for f in features]
+    all_etoken_index = [[None if i is None else i+1 for i in f.answer_etoken_idxs[0]] for f in features]
+    
     eval_sampler = SequentialSampler(dataset)
     eval_dataloader = DataLoader(dataset, sampler=eval_sampler, batch_size=args.per_gpu_train_batch_size)
 

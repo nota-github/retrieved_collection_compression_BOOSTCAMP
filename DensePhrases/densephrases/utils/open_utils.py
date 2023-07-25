@@ -122,6 +122,8 @@ def load_qa_pairs(data_path, args, q_idx=None, draft_num_examples=100, shuffle=F
         answer = item['answers']
         title = item.get('titles', [''])
         context = item.get('context', [''])
+        if context != ['']:
+            context = context.strip()
         if len(answer) == 0:
             continue
         q_ids.append(q_id)

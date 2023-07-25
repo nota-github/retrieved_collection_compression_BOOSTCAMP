@@ -125,6 +125,9 @@ def train_query_encoder(args, mips=None):
                 target_encoder.qa_outputs = torch.nn.Linear(config.hidden_size, 2)
                 target_encoder.qa_outputs.load_state_dict(new_linear)
                 
+                target_encoder.cross_encoder.to(device)
+                target_encoder.qa_outputs.to(device)
+                
             else:
                 train_dataloader, _, _ = get_question_dataloader(
                     questions, tokenizer, args.max_query_length, batch_size=args.per_gpu_train_batch_size
@@ -136,22 +139,22 @@ def train_query_encoder(args, mips=None):
             evs_t = torch.Tensor(evs).to(device)
             tgts_t = [torch.Tensor([tgt_ for tgt_ in tgt if tgt_ is not None]).to(device) for tgt in tgts]
             p_tgts_t = [torch.Tensor([tgt_ for tgt_ in tgt if tgt_ is not None]).to(device) for tgt in p_tgts]
-            c_tgts_t = [torch.Tensor([tgt_ for tgt_ in tgt if tgt_ is not None]).to(device) for tgt in c_tgts]
-
+            all_stoken_index_t = [torch.Tensor([sti_t if sti_t is not None else -1 for sti_t in stoken_index]).to(device) for stoken_index in all_stoken_index]
+            all_etoken_index_t = [torch.Tensor([eti_t if eti_t is not None else -1 for eti_t in etoken_index]).to(device) for etoken_index in all_etoken_index]
+            
             # Train query encoder
             assert len(train_dataloader) == 1
             for batch in train_dataloader:
                 batch = tuple(t.to(device) for t in batch)
                 if args.distillation:
                     loss, accs = target_encoder.train_query(
-                    input_ids_=batch[6], attention_mask_=batch[7], token_type_ids_=batch[8],
+                    input_ids_=batch[6], attention_mask_=batch[7], token_type_ids_=batch[8], # query
                     start_vecs=svs_t,
                     end_vecs=evs_t,
                     targets=tgts_t,
                     p_targets=p_tgts_t,
-                    c_targets=c_tgts_t,
-                    input_ids=batch[0], attention_mask=batch[1], token_type_ids=batch[2],
-                    all_stoken_index=all_stoken_index, all_etoken_index=all_etoken_index,
+                    input_ids=batch[0], attention_mask=batch[1], token_type_ids=batch[2], # context
+                    all_stoken_index=all_stoken_index_t, all_etoken_index=all_etoken_index_t
                 )
                 else:
                     loss, accs = target_encoder.train_query(
@@ -254,7 +257,7 @@ def get_top_phrases(mips, q_ids, questions, answers, titles, contexts, query_enc
         )
 
 
-def annotate_phrase_vecs(mips, q_ieds, questions, answers, titles, phrase_groups, args, contexts):
+def annotate_phrase_vecs(mips, q_ids, questions, answers, titles, phrase_groups, args, contexts):
     assert mips is not None
     batch_size = len(answers)
     # Phrase groups are in size of [batch, top_k, values]
