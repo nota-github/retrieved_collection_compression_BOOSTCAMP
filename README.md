@@ -52,12 +52,15 @@ python retrieve.py \
   --batch_size BATCH_SIZE \
   --query_encoder_name_or_dir princeton-nlp/densephrases-multi \
   --index_name INDEX_NAME \
-  --runfile_name run.tsv
+  --runfile_name run.tsv \
+  --truecase
 ```
+* use truecase when language model is case-sensitive.
+  * princeton-nlp/densephrases-* model is based on spanbert-base-cased-* which is case-sensitive.
 * batch_size=128 works for GPU with VRAM=24GB
 * INDEX_NAME
-  * small: 1048576_flat_OPQ96_small -> use it for development phase
-  * full: 1048576_flat_OPQ96 -> use it before finalize solution
+  * small: start/1048576_flat_OPQ96_small -> use it for development phase
+  * full: start/1048576_flat_OPQ96 -> use it before finalize solution
 * output: runfile
 * assignment: modify inference logic to improve evaluation metric (mAR)
   * modifyable parts
