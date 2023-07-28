@@ -1,7 +1,6 @@
 # Compress retrieved collection with DensePhrases
 
-<a href=""><img src="https://img.shields.io/badge/Presentation video-FFFFFF?style=for-the-badge&logo=youtube&logoColor=ff0000"/></a>  <a href="./assets/docs/NLP_6조_Nota 기업 연계 프로젝트.pdf"><img src="https://img.shields.io/badge/Presentation (Pdf)-FFFFFF?style=for-the-badge&logo=microsoftpowerpoint&logoColor=B7472A"/></a> 
-<a href=""><img src="https://img.shields.io/badge/Wrapup report-FFFFFF?style=for-the-badge&logo=Google Sheets&logoColor=34A853"/></a>  
+<a href="https://youtu.be/K8NJ71x_Ia8"><img src="https://img.shields.io/badge/Presentation video-FFFFFF?style=for-the-badge&logo=youtube&logoColor=ff0000"/></a> <a href="./assets/docs/[최종] NLP_06조_생성형 검색을 위한 프롬프트 경량화.pptx"><img src="https://img.shields.io/badge/Presentation-FFFFFF?style=for-the-badge&logo=microsoftpowerpoint&logoColor=B7472A"/></a> <a href=""><img src="https://img.shields.io/badge/Wrapup report-FFFFFF?style=for-the-badge&logo=googlesheets&logoColor=34A853"/></a> <a href="https://boostcampait.notion.site/NLP-06-aed368eab95e4b78bcab82d528a18d35?pvs=4"><img src="https://img.shields.io/badge/Project summary-FFFFFF?style=for-the-badge&logo=notion&logoColor=000000"/></a>
 
 ## Overview
 ![Overview](/assets/img/overview.png)
@@ -34,3 +33,14 @@
 
 ## Demo
 ![Demo](/assets/img/demo%20page.gif)
+
+## Detail
+
+- [발표 및 시연 영상]()
+- [발표 자료]()
+- [프로젝트 랩업 리포트]()
+- [프로젝트 소개 노션 페이지](https://boostcampait.notion.site/NLP-06-aed368eab95e4b78bcab82d528a18d35?pvs=4)
+
+## Acknowledgement
+* Majority of retrieval code comes from [princeton-nlp/Densephrases](https://github.com/princeton-nlp/DensePhrases) and included as submodule of this repository.
+* Retrieval-augmented LM is built based on [langchain](https://github.com/hwchase17/langchain).
