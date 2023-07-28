@@ -1,6 +1,6 @@
 # Compress retrieved collection with DensePhrases
 
-<a href="https://youtu.be/Upv_rh9PWJk"><img src="https://img.shields.io/badge/Presentation video-FFFFFF?style=for-the-badge&logo=youtube&logoColor=ff0000"/></a> <a href="./assets/docs/[최종] NLP_06조_생성형 검색을 위한 프롬프트 경량화.pptx"><img src="https://img.shields.io/badge/Presentation-FFFFFF?style=for-the-badge&logo=microsoftpowerpoint&logoColor=B7472A"/></a> <a href=""><img src="https://img.shields.io/badge/Wrapup report-FFFFFF?style=for-the-badge&logo=googlesheets&logoColor=34A853"/></a> <a href="https://boostcampait.notion.site/NLP-06-aed368eab95e4b78bcab82d528a18d35?pvs=4"><img src="https://img.shields.io/badge/Project summary-FFFFFF?style=for-the-badge&logo=notion&logoColor=000000"/></a>
+<a href="https://youtu.be/K8NJ71x_Ia8"><img src="https://img.shields.io/badge/Presentation video-FFFFFF?style=for-the-badge&logo=youtube&logoColor=ff0000"/></a> <a href="./assets/docs/[최종] NLP_06조_생성형 검색을 위한 프롬프트 경량화.pptx"><img src="https://img.shields.io/badge/Presentation-FFFFFF?style=for-the-badge&logo=microsoftpowerpoint&logoColor=B7472A"/></a> <a href=""><img src="https://img.shields.io/badge/Wrapup report-FFFFFF?style=for-the-badge&logo=googlesheets&logoColor=34A853"/></a> <a href="https://boostcampait.notion.site/NLP-06-aed368eab95e4b78bcab82d528a18d35?pvs=4"><img src="https://img.shields.io/badge/Project summary-FFFFFF?style=for-the-badge&logo=notion&logoColor=000000"/></a>
 
 ## Overview
 ![Overview](/assets/img/overview.png)
