@@ -1,5 +1,4 @@
-## Compress retrieved collection with DensePhrase
-This repository is used for compressing retrieved collection which further is used as a prompt for retrieval augmented language model.
+## Compress retrieved collection with DensePhrases
 
 ### Procedure
 #### step 1. Clone repository and update submodules
@@ -126,7 +125,3 @@ source_36: Gut-associated lymphoid tissue (GALT) is a component of the mucosa-as
 </details>
 
 * ![RaLM Web demo](assets/img/RaLM_example.png)
-
-### Acknowledgement
-* Majority of retrieval code comes from [princeton-nlp/Densephrases](https://github.com/princeton-nlp/DensePhrases) and included as [submodule](Densephrases) of this repository.
-* Retrieval-augmented LM is built based on [langchain](https://github.com/hwchase17/langchain).
