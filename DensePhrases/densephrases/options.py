@@ -186,6 +186,7 @@ class Options():
         self.parser.add_argument("--max_grad_norm", default=1.0, type=float, help="Max gradient norm.")
         self.parser.add_argument('--label_strat', default='phrase', type=str, help="label strat={phrase|doc|phrase,doc}")
         self.parser.add_argument('--distillation', action="store_true", help="Distillation option while QSFT")
+        self.parser.add_argument('--distill_train', action="store_true", help="Distillation option while QSFT")
 
     def add_demo_options(self):
         self.parser.add_argument('--base_ip', default='http://127.0.0.1')

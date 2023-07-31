@@ -48,16 +48,15 @@ def embed_all_query(questions, args, query_encoder, tokenizer, batch_size=64):
 
 def evaluate(args, mips=None, query_encoder=None, tokenizer=None, q_idx=None):
     # Load dataset and encode queries
-    qids, questions, answers, _ = load_qa_pairs(args.test_path, args, q_idx)
+    qids, questions, answers, _ , _= load_qa_pairs(args.test_path, args, q_idx)
 
     if query_encoder is None:
         logger.info(f'Query encoder will be loaded from {args.load_dir}')
         device = 'cuda' if args.cuda else 'cpu'
         query_encoder, tokenizer, _ = load_encoder(device, args)
     query_vec = embed_all_query(questions, args, query_encoder, tokenizer)
-
     # Load MIPS
-    if mips is None:
+    if mips is None: 
         mips = load_phrase_index(args)
 
     # Search

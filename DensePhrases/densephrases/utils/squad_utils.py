@@ -94,7 +94,7 @@ def _is_whitespace(c):
 
 
 def squad_convert_example_to_features(example, max_seq_length, doc_stride, max_query_length, is_training, context_only,
-        question_only, append_title, skip_no_answer):
+        question_only, append_title, skip_no_answer, no_dup=False):
     features = []
 
     # start_time = time()
@@ -161,8 +161,8 @@ def squad_convert_example_to_features(example, max_seq_length, doc_stride, max_q
                 all_doc_tokens.append(sub_token)
 
         if example.answer_stoken_idxs:
-            answer_stoken_idxs = [orig_to_tok_index[st] if st != None else None for st in example.answer_stoken_idxs]
-            answer_etoken_idxs = [orig_to_tok_index[et] if et != None else None for et in example.answer_etoken_idxs]
+            answer_stoken_idxs = [orig_to_tok_index[st] if st != None and orig_to_tok_index[st]<max_seq_length else None for st in example.answer_stoken_idxs]
+            answer_etoken_idxs = [orig_to_tok_index[et] if et != None and orig_to_tok_index[et]<max_seq_length else None for et in example.answer_etoken_idxs]
         
         # Add negatives when there are
         all_neg_tokens = []
@@ -291,7 +291,8 @@ def squad_convert_example_to_features(example, max_seq_length, doc_stride, max_q
                 encoded_dict["query_len"] = query_len
 
             spans.append(encoded_dict)
-
+            if no_dup:
+                break
             if "overflowing_tokens" not in encoded_dict:
                 break
             span_doc_tokens = encoded_dict["overflowing_tokens"]
@@ -460,6 +461,7 @@ def squad_convert_examples_to_features(
     append_title=False,
     skip_no_answer=False,
     max_q=None, # not used
+    no_dup=False,
 ):
     """
     Converts a list of examples into a list of features that can be directly given as input to a model.
@@ -512,6 +514,7 @@ def squad_convert_examples_to_features(
                 question_only=question_only,
                 append_title=append_title,
                 skip_no_answer=skip_no_answer,
+                no_dup = True,
             )
             features = list(
                 tqdm(
@@ -533,6 +536,7 @@ def squad_convert_examples_to_features(
             question_only=question_only,
             append_title=append_title,
             skip_no_answer=skip_no_answer,
+            no_dup=True,
         ) for example in examples]
 
     # logger.info(f'prepro 1) {time()-start_time}')
@@ -1086,8 +1090,8 @@ class SquadExample(object):
         # retrieved phrase's start/end position -> start/end token index
         # (top-k *2)
         if self.start_position_list is not None:
-            self.answer_stoken_idxs = [self.char_to_word_offset[pos] if pos != None else None for pos in self.start_position_list]
-            self.answer_etoken_idxs = [self.char_to_word_offset[pos] if pos != None else None for pos in self.end_position_list]
+            self.answer_stoken_idxs = [self.char_to_word_offset[pos] if pos != None and pos< len(self.char_to_word_offset) else None for pos in self.start_position_list]
+            self.answer_etoken_idxs = [self.char_to_word_offset[pos] if pos != None and pos< len(self.char_to_word_offset) else None for pos in self.end_position_list]
         
         # Same pre-processing for neg tokens
         self.neg_doc_tokens, _ = self.create_tokens(self.neg_context_text)
@@ -1663,7 +1667,7 @@ def get_distill_dataloader(examples_list, tokenizer, args):
         examples=examples,
         tokenizer=tokenizer,
         max_seq_length=384,
-        doc_stride=128,
+        doc_stride=384,
         max_query_length=64,
         is_training=False,
         return_dataset="pt",
@@ -1671,6 +1675,7 @@ def get_distill_dataloader(examples_list, tokenizer, args):
         question_only=False,
         append_title=False,
         tqdm_enabled=False,
+        no_dup = True,
     )
     all_stoken_index = [[None if i is None else i+1 for i in f.answer_stoken_idxs[0]] for f in features]
     all_etoken_index = [[None if i is None else i+1 for i in f.answer_etoken_idxs[0]] for f in features]

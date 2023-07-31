@@ -82,7 +82,31 @@ def train_query_encoder(args, mips=None):
     # Train arguments
     args.per_gpu_train_batch_size = int(args.per_gpu_train_batch_size / args.gradient_accumulation_steps)
     best_acc = -1000.0
+        
     for ep_idx in range(int(args.num_train_epochs)):
+        if args.distillation and args.distill_train:
+            cross_encoder = torch.load(
+                    os.path.join("/opt/ml/level3_nlp_finalproject-nlp-06/DensePhrases/outputs/spanbert-base-cased-nq", "pytorch_model.bin"), map_location=torch.device('cpu')
+                    )
+            new_qd = {n[len('bert')+1:]: p for n, p in cross_encoder.items() if 'bert' in n}
+            new_linear = {n[len('qa_outputs')+1:]: p for n, p in cross_encoder.items() if 'qa_outputs' in n}
+            qd_config, unused_kwargs = AutoConfig.from_pretrained(
+                args.pretrained_name_or_path,
+                cache_dir=args.cache_dir if args.cache_dir else None,
+                return_unused_kwargs=True
+            )
+            qd_pretrained = AutoModel.from_pretrained(
+                args.pretrained_name_or_path,
+                config=qd_config,
+                cache_dir=args.cache_dir if args.cache_dir else None,
+            )
+            target_encoder.cross_encoder = qd_pretrained
+            target_encoder.cross_encoder.load_state_dict(new_qd)
+            target_encoder.qa_outputs = torch.nn.Linear(config.hidden_size, 2)
+            target_encoder.qa_outputs.load_state_dict(new_linear)
+            
+            target_encoder.cross_encoder.to(device)
+            target_encoder.qa_outputs.to(device)
 
         # Training
         total_loss = 0.0
@@ -98,35 +122,13 @@ def train_query_encoder(args, mips=None):
 
         for step_idx, (q_ids, questions, answers, titles, contexts, outs) in enumerate(pbar):
             svs, evs, tgts, p_tgts, start_positions, end_positions = annotate_phrase_vecs(mips, q_ids, questions, answers, titles, outs, args, contexts)
-            if args.distillation:
+            if args.distillation and args.distill_train:
                 examles_list = [{'id':q_id, 'question':question, 'context':context, 'titles':title, 'answers':answer, 'answer_start_idxs': start_pos, 'answer_end_idxs':end_pos}
                 for q_id, question, context, title, answer, start_pos, end_pos in zip(q_ids, questions, contexts, titles, answers, start_positions, end_positions)]
                 
                 train_dataloader,all_stoken_index, all_etoken_index = get_distill_dataloader(examles_list, tokenizer, args)
-                
-                args.lambda_kl = 2.0
-                cross_encoder = torch.load(
-                os.path.join("/opt/ml/level3_nlp_finalproject-nlp-06/DensePhrases/outputs/spanbert-base-cased-nq", "pytorch_model.bin"), map_location=torch.device('cpu')
-                )
-                new_qd = {n[len('bert')+1:]: p for n, p in cross_encoder.items() if 'bert' in n}
-                new_linear = {n[len('qa_outputs')+1:]: p for n, p in cross_encoder.items() if 'qa_outputs' in n}
-                qd_config, unused_kwargs = AutoConfig.from_pretrained(
-                    args.pretrained_name_or_path,
-                    cache_dir=args.cache_dir if args.cache_dir else None,
-                    return_unused_kwargs=True
-                )
-                qd_pretrained = AutoModel.from_pretrained(
-                    args.pretrained_name_or_path,
-                    config=qd_config,
-                    cache_dir=args.cache_dir if args.cache_dir else None,
-                )
-                target_encoder.cross_encoder = qd_pretrained
-                target_encoder.cross_encoder.load_state_dict(new_qd)
-                target_encoder.qa_outputs = torch.nn.Linear(config.hidden_size, 2)
-                target_encoder.qa_outputs.load_state_dict(new_linear)
-                
-                target_encoder.cross_encoder.to(device)
-                target_encoder.qa_outputs.to(device)
+                all_stoken_index_t = [torch.Tensor([sti_t if sti_t is not None else -1 for sti_t in stoken_index]).to(device) for stoken_index in all_stoken_index]
+                all_etoken_index_t = [torch.Tensor([eti_t if eti_t is not None else -1 for eti_t in etoken_index]).to(device) for etoken_index in all_etoken_index]
                 
             else:
                 train_dataloader, _, _ = get_question_dataloader(
@@ -139,14 +141,13 @@ def train_query_encoder(args, mips=None):
             evs_t = torch.Tensor(evs).to(device)
             tgts_t = [torch.Tensor([tgt_ for tgt_ in tgt if tgt_ is not None]).to(device) for tgt in tgts]
             p_tgts_t = [torch.Tensor([tgt_ for tgt_ in tgt if tgt_ is not None]).to(device) for tgt in p_tgts]
-            all_stoken_index_t = [torch.Tensor([sti_t if sti_t is not None else -1 for sti_t in stoken_index]).to(device) for stoken_index in all_stoken_index]
-            all_etoken_index_t = [torch.Tensor([eti_t if eti_t is not None else -1 for eti_t in etoken_index]).to(device) for etoken_index in all_etoken_index]
+            
             
             # Train query encoder
             assert len(train_dataloader) == 1
             for batch in train_dataloader:
                 batch = tuple(t.to(device) for t in batch)
-                if args.distillation:
+                if args.distillation and args.distill_train:
                     loss, accs = target_encoder.train_query(
                     input_ids_=batch[6], attention_mask_=batch[7], token_type_ids_=batch[8], # query
                     start_vecs=svs_t,
@@ -202,6 +203,7 @@ def train_query_encoder(args, mips=None):
             f"acc@1: {sum(total_accs)/len(total_accs):.3f} | acc@{args.top_k}: {sum(total_accs_k)/len(total_accs_k):.3f}"
         )
 
+        args.distill_train = False
         # Evaluation
         new_args = copy.deepcopy(args)
         new_args.top_k = 10
@@ -210,6 +212,8 @@ def train_query_encoder(args, mips=None):
         dev_em, dev_f1, dev_emk, dev_f1k = evaluate(new_args, mips, target_encoder, tokenizer)
         logger.info(f"Develoment set acc@1: {dev_em:.3f}, f1@1: {dev_f1:.3f}")
 
+        args.distill_train = True
+        
         # Save best model
         if dev_em > best_acc:
             best_acc = dev_em

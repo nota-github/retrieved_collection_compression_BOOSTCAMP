@@ -24,7 +24,7 @@ def eval(args):
 
     # evaluate recall with varying collection length
     runfile_path = f"{RUNFILE_DIR}/{args.runfile_name}"
-    num_bin = int(MAX_NUM_WORD_LARGE_ENOUGH / NUM_WORD_HIST_BIN_WIDTH) + 1
+    num_bin = int(MAX_NUM_WORD_LARGE_ENOUGH / NUM_WORD_HIST_BIN_WIDTH)
     recall_by_collection_len_per_sample = np.zeros(
         (num_query, num_bin)
     )  # measure recall by `macro` fashion
