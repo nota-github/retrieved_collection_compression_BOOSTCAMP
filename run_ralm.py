@@ -155,6 +155,10 @@ if __name__ == "__main__":
         default="start/1048576_flat_OPQ96_small",
         help="index name appended to index directory prefix",
     )
+    parser.add_argument(
+        "--static",
+        action="store_true",
+    )
 
     args = parser.parse_args()
 
